@@ -1,0 +1,580 @@
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="msapplication-tap-highlight" content="no" />
+  <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width" />
+  <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' gap:; style-src 'self' 'unsafe-inline'; media-src *" />
+  <style>
+body {
+    -webkit-touch-callout: none;                /* prevent callout to copy image, etc when tap to hold */
+    -webkit-text-size-adjust: none;             /* prevent webkit from resizing text to fit */
+    -webkit-user-select: none;                  /* prevent copy paste, to allow, change 'none' to 'text' */
+    background-color:#343434;
+    font-family:'HelveticaNeue-Light', 'HelveticaNeue', Helvetica, Arial, sans-serif;
+    font-size:18px;
+    height:100%;
+    margin:0px;
+    padding:0px;
+    width:100%;
+    color:#aaa;
+}
+
+a
+{
+  text-decoration:none;
+  color:#aaa;
+}
+
+#settings, #settings a
+{
+  color:white;
+}
+
+#doTests
+{
+  display:inline-block;
+  padding:30px;
+  border-radius:30px;
+  background:rgba(0,0,128,0.3);
+  margin:auto;
+  box-shadow:inset black 0px 0px 10px 0px;
+}
+
+#doTests:hover
+{
+  background:rgba(0,0,128,0.6);
+  color:rgba(255,255,255,0.5);
+}
+
+#scheduleDiv
+{
+  margin:50px;
+}
+  </style>
+  <title>PolyDiscord Data Gathering</title>
+</head>
+
+<body>
+  <a href='javascript:showSettings();' style='position:absolute; top:5px; right: 5px;'>[S]</a>
+  <div style='position:absolute; top:0; left:0; width:100%; height:100%; display:none; z-index:1; background:rgba(0,0,0,0.8); text-align:center; padding-top:30px;' id='settings'></div>
+  <div id='main' style='text-align:center;'></div>
+    <script type="text/javascript" src="cordova.js"></script>
+</body>
+
+<script>
+var score=0;
+var scores={};
+
+showMain();
+var settings=getSettings();
+if(settings.schedule=='Schedule unset' || settings.startDate=='Unset')
+  showSettings();
+
+document.addEventListener('deviceready', callback);
+
+function showSettings()
+{
+  var settingsDiv=document.getElementById('settings');
+  settingsDiv.style.display='';
+  settingsDiv.innerHTML='';
+
+  var settings=getSettings();
+
+  var label=document.createElement('span');
+  settingsDiv.appendChild(label);
+  label.innerHTML='Schedule: ';
+  var select=document.createElement('select');
+  settingsDiv.appendChild(select);
+  select.addEventListener('change', setSettings.bind(undefined, settingsDiv));
+
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='Mono';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='E1';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='Segmented';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='Siesta';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='E2';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='E3';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='E4';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='E5';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='Trimaxion';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='Bimaxion';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='DC1';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='DC2';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='DC3';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='DC4';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='TC1';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='TC2';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='Triphasic';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='SEVAMAYL';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='Dymaxion';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='Naptation';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='SPAMAYL';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='Tesla';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='Uberman';
+  option.innerHTML=option.value;
+  if(settings.schedule)
+  {
+    var options=select.getElementsByTagName('option');
+    for(var i=0; i<options.length; i++)
+    {
+      if(options[i].value==settings.schedule)
+      {
+        select.selectedIndex=i;
+        break;
+      }
+    }
+  }
+
+  var select=document.createElement('select');
+  settingsDiv.appendChild(select);
+  select.addEventListener('change', setSettings.bind(undefined, settingsDiv));
+
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='shortened';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='extended';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='flipped';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='modified';
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value='recovery';
+  option.innerHTML=option.value;
+  if(settings.modifier)
+  {
+    var options=select.getElementsByTagName('option');
+    for(var i=0; i<options.length; i++)
+    {
+      if(options[i].value==settings.modifier)
+      {
+        select.selectedIndex=i;
+        break;
+      }
+    }
+  }
+
+  /*var input=document.createElement('input');
+  settingsDiv.appendChild(input);
+  input.placeholder='Schedule';
+  if(settings.schedule!='Schedule unset')
+    input.value=settings.schedule;
+  input.addEventListener('change', setSettings.bind(undefined, settingsDiv));
+  input.addEventListener('keyUp', setSettings.bind(undefined, settingsDiv));
+  */
+  settingsDiv.appendChild(document.createElement('br'));
+
+  var label=document.createElement('span');
+  settingsDiv.appendChild(label);
+  label.innerHTML='Start date: ';
+  var input=document.createElement('input');
+  settingsDiv.appendChild(input);
+  input.type='date';
+  if(settings.startDate!='Unset')
+    input.value=settings.startDate;
+  input.addEventListener('change', setSettings.bind(undefined, settingsDiv));
+  input.addEventListener('keyUp', setSettings.bind(undefined, settingsDiv));
+  settingsDiv.appendChild(document.createElement('br'));
+
+  var label=document.createElement('span');
+  settingsDiv.appendChild(label);
+  label.innerHTML='Monophasic hours sleep required: ';
+  var input=document.createElement('input');
+  input.style.width='5em';
+  settingsDiv.appendChild(input);
+  if(settings.monosleep)
+    input.value=settings.monosleep;
+  input.addEventListener('change', setSettings.bind(undefined, settingsDiv));
+  input.addEventListener('keyUp', setSettings.bind(undefined, settingsDiv));
+  settingsDiv.appendChild(document.createElement('br'));
+
+  var label=document.createElement('span');
+  settingsDiv.appendChild(label);
+  label.innerHTML='Adapted';
+  var a=document.createElement('a');
+  label.appendChild(a);
+  a.innerHTML='[?]';
+  a.href='javascript:void(0);';
+  a.addEventListener('click', showAdaptCriteria);
+  label.appendChild(document.createTextNode(': '));
+  var input=document.createElement('input');
+  input.type='checkbox';
+  settingsDiv.appendChild(input);
+  if(settings.adapted)
+  {
+    input.checked=true;
+  }
+  input.addEventListener('change', setSettings.bind(undefined, settingsDiv));
+  settingsDiv.appendChild(document.createElement('br'));
+
+  var a=document.createElement('a');
+  settingsDiv.appendChild(a);
+  a.innerHTML='Test reminder (in 10 seconds)';
+  a.href='javascript:void(0);';
+  a.addEventListener('click', testNotify);
+  settingsDiv.appendChild(document.createElement('br'));
+
+  var a=document.createElement('a');
+  settingsDiv.appendChild(a);
+  a.innerHTML='Close';
+  a.style.fontSize='2em';
+  a.href='javascript:void(0);';
+  a.addEventListener('click', hide.bind(undefined, settingsDiv));
+}
+
+function testNotify()
+{
+  var now = new Date().getTime();
+  var in_10_secs = new Date(now+10*1000);
+  cordova.plugins.notification.local.schedule({title:"Polyphasic Cognitive Tests", text:"Reminder to do the Polyphasic tests", at:in_10_secs, led:"FF0000"});
+}
+
+function showAdaptCriteria()
+{
+  var div=document.createElement('div');
+  document.body.appendChild(div);
+  div.setAttribute('style', 'position:absolute; top:0; left:0; width:100%; height:100%; z-index:2; background:rgba(0,0,0,0.8); text-align:center; padding-top:30px;');
+  div.innerHTML='<span style="color:red;">TODO: this doesn\'t look right for an adaptation checklist - verify with an admin and get the proper checklist?</span><br />';
+  var ol=document.createElement('ol');
+  ol.setAttribute('style', 'list-style-position: inside;');
+  div.appendChild(ol);
+  ol.innerHTML='<li>Feel energized and productive when awake, no memory loss, elevation in mood, and good apetite.</li>';
+  ol.innerHTML+='<li>Wake up feeling refreshed whether the nap or the core. No sleep inertia.</li>';
+  ol.innerHTML+='<li>Fall asleep fast in all sleeps, even if you don\'t prepare some time beforehand to sleep.</li>';
+  ol.innerHTML+='<li>Wake naturally without the need for alarms. This requires long entrainment with a sleep cycle, often months for it to be consistent.</li>';
+  ol.innerHTML+='<li>You might remember more dreams from your sleep, and more vivid dreams (the dreams can come from the end of your core sleep, or you can even dream right when you fall asleep shortly). Some people remember fewer dreams, due to consistently waking from light sleep as an adaptation to rigid sleep times.</li>';
+
+  var a=document.createElement('a');
+  div.appendChild(a);
+  a.innerHTML='Close';
+  a.style.fontSize='2em';
+  a.href='javascript:void(0);';
+  a.addEventListener('click', close.bind(undefined, div));
+}
+
+function close(elem)
+{
+  elem.parentNode.removeChild(elem);
+}
+
+function getSettings()
+{
+  var settings=window.localStorage.settings;
+  if(!settings)
+    settings={schedule:'Schedule unset', modifier:'', startDate:'Unset'};
+  else
+    settings=JSON.parse(settings);
+
+  if(settings.schedule=='')
+    settings.schedule='Schedule unset';
+
+  return settings;
+}
+
+function setSettings(settingsDiv)
+{
+  var settings={};
+
+  var inputs=settingsDiv.getElementsByTagName('input');
+  var selects=settingsDiv.getElementsByTagName('select');
+
+  settings.schedule=selects[0].selectedOptions[0].value;
+  settings.modifier=selects[1].selectedOptions[0].value;
+
+  settings.startDate=inputs[0].value;
+  settings.monosleep=inputs[1].value;
+  settings.adapted=inputs[2].checked;
+
+  window.localStorage.settings=JSON.stringify(settings);
+
+  showMain();
+}
+
+function hide(elem)
+{
+  elem.style.display='none';
+}
+
+function showMain()
+{
+  var mainDiv=document.getElementById('main');
+  mainDiv.innerHTML='';
+
+  var settings=getSettings();
+
+  var scheduleDiv=document.createElement('div');
+  scheduleDiv.id='scheduleDiv';
+  mainDiv.appendChild(scheduleDiv);
+  var day=0;
+  if(settings.startDate!='Unset')
+    day=daysSince(settings.startDate);
+  var span=document.createElement('span');
+  scheduleDiv.appendChild(span);
+  span.setAttribute('style', 'margin:20px;');
+  span.innerHTML=settings.schedule;
+  if(settings.modifier)
+  {
+    span.innerHTML+='-'+settings.modifier;
+  }
+  scheduleDiv.innerHTML+='<span style="margin:20px;">Day #'+day+'</span>';
+
+  if(settings.adapted)
+  {
+    scheduleDiv.innerHTML+='<div style="color:green;">Adapted</div>';
+  }
+  else
+  {
+    scheduleDiv.innerHTML+='<div style="color:red;">Not Adapted</div>';
+  }
+
+  var a=document.createElement('a');
+  a.id='doTests';
+  mainDiv.appendChild(a);
+  a.href='javascript:void(0);';
+  a.innerHTML='Do tests';
+  a.addEventListener('click', doTests.bind(undefined, 0));
+
+  /*var napTime=document.createElement('a');
+  mainDiv.appendChild(napTime);
+  */
+}
+
+var tests = [
+  {name:"Reaction time", description:"Tap or click as soon as the screen turns green", func:reaction_test},
+  ];
+
+// div is the element to put the test in, callback is what to call when the test is finished
+// Start of reaction_test functions
+function reaction_test(div, callback)
+{
+  div.innerHTML='';
+
+  var results=[];
+  var background=document.createElement('a');
+  div.appendChild(background);
+  background.setAttribute('style', 'position:absolute; width:100%; height:100%; top:0; left:0; background:red;');
+  background.addEventListener('click', reaction_clicked.bind(undefined, background, results, callback));
+  inbetween_reactions(background, results, callback);
+}
+
+function inbetween_reactions(background, results, callback)
+{
+  if(results.length>=5)
+  {
+    background.innerHTML+='Reaction time tests done';
+    background.innerHTML+='<br /><br />Tap or click to proceed';
+  }
+  else
+  {
+    background.innerHTML+='Reaction time test: '+(results.length+1)+' of 5';
+    background.innerHTML+='<br /><br />Instructions: Tap or click to start<br />Then tap or click again as soon as the screen goes green';
+  }
+  background.style.background='red';
+
+  if(results.length > 0)
+  {
+    background.innerHTML+='<br /><br />Results: ';
+    for(var i=0; i<results.length; i++)
+    {
+      if(i>0)
+        background.innerHTML+=', ';
+      background.innerHTML+=results[i]+'ms';
+    }
+    background.innerHTML+='<br /><br />Average so far: '+Math.round(average(results))+'ms';
+  }
+
+  if(results.length>=5)
+  {
+    background.setAttribute('change', -1);
+  }
+  else
+  {
+    background.setAttribute('change', 0);
+  }
+}
+
+function average(results)
+{
+  var total=0;
+  for(var i=0; i<results.length; i++)
+  {
+    total+=results[i];
+  }
+  return total/results.length;
+}
+
+function new_reaction(background, results, callback)
+{
+  background.innerHTML='Reaction time test: '+(results.length+1)+' of 5<br /><br />Tap or click as soon as the screen goes green';
+  var delay=Math.round(Math.random()*7500)+2500; // the delay is between 2.5 and 10 seconds
+  background.setAttribute('change', Date.now()+delay);
+  window.setTimeout(changeBackground.bind(undefined, background), delay);
+}
+
+function reaction_clicked(background, results, callback)
+{
+  var now=Date.now(); // grab 'now' as soon as possible so we don't lose any milliseconds
+  var change=parseInt(background.getAttribute('change'));
+
+  if(change==0) // we haven't started yet, so start
+  {
+    new_reaction(background, results, callback);
+    return;
+  }
+  else if(change==-1) // we're done, update 'score' and 'scores', then call the callback
+  {
+    score+=100 / (average(results) / 1000);
+    scores.reaction_time=average(results);
+    callback();
+    return;
+  }
+
+  if(now-change<0)
+  {
+    background.innerHTML='Too soon, the screen hadn\'t turned green yet<br /><br />';
+    inbetween_reactions(background, results, callback);
+  }
+  else
+  {
+    results.push(now-change);
+    background.innerHTML='';
+    inbetween_reactions(background, results, callback);
+  }
+}
+
+function changeBackground(background)
+{
+  background.setAttribute('change', Date.now());
+  background.style.background='green';
+  console.log('changed background');
+}
+// End of reaction_test functions
+
+function doTests(index)
+{
+  var mainDiv=document.getElementById('main');
+  mainDiv.innerHTML='';
+
+  if(index==0)
+  {
+    score=0;
+    scores={};
+  }
+
+  var a=document.createElement('a');
+  mainDiv.appendChild(a);
+  a.setAttribute('style', 'position:absolute; width:100%; height:100%; top:0; left:0;');
+
+  var test=tests[index];
+  if(!test)
+  {
+    a.innerHTML='All '+tests.length+' tests complete for this session.<br />Your total score this session was: '+Math.round(score);
+    a.addEventListener('click', showMain);
+    return;
+  }
+
+  a.innerHTML='Test '+(index+1)+' of '+tests.length+'<br /><br />'+test.name+'<br /><br />'+test.description;
+  a.innerHTML+='<br /><br />(Tap or click to take test)';
+  a.addEventListener('click', test.func.bind(undefined, mainDiv, doTests.bind(undefined, index+1)));
+}
+
+function treatAsUTC(date)
+{
+  var result = new Date(date);
+  result.setHours(0);
+  result.setMinutes(0);
+  result.setSeconds(0);
+  result.setMilliseconds(0);
+  result.setMinutes(result.getMinutes() - result.getTimezoneOffset());
+  return result;
+}
+
+function daysSince(startDate)
+{
+  var now=new Date();
+  var millisecondsPerDay = 24*60*60*1000;
+  return ((treatAsUTC(now) - treatAsUTC(startDate)) / millisecondsPerDay) + 1;
+}
+  </script>
+
+</html>
