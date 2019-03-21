@@ -10,5 +10,5 @@ Design guidelines:
 1. [Done] Schedule selection and start date entry
 2. [In Progress] Cognitive performance tests (at least reaction time and working memory)
 3. [Not Done] Optional weekly test reminders (as notifications/alarms, with custom time and a midday default)
-4. [Not Done] Checkbox style adaptation sign entry (with criteria shown)
+4. [Done] Checkbox style adaptation sign entry (with criteria shown)
 5. [Not Done] Data export
