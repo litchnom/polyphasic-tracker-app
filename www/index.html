@@ -71,8 +71,6 @@ var settings=getSettings();
 if(settings.schedule=='Schedule unset' || settings.startDate=='Unset')
   showSettings();
 
-document.addEventListener('deviceready', callback);
-
 function showSettings()
 {
   var settingsDiv=document.getElementById('settings');
@@ -287,6 +285,90 @@ function showSettings()
   input.addEventListener('change', setSettings.bind(undefined, settingsDiv));
   settingsDiv.appendChild(document.createElement('br'));
 
+  var label=document.createElement('span');
+  settingsDiv.appendChild(label);
+  label.innerHTML='Reminder to do tests: ';
+  var select=document.createElement('select');
+  select.addEventListener('change', setSettingsAndReload.bind(undefined, settingsDiv));
+  settingsDiv.appendChild(select);
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value="Never";
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value="Weekly";
+  option.innerHTML=option.value;
+  var option=document.createElement('option');
+  select.appendChild(option);
+  option.value="Daily";
+  option.innerHTML=option.value;
+  if(settings.reminder)
+  {
+    var options=select.getElementsByTagName('option');
+    for(var i=0; i<options.length; i++)
+    {
+      if(options[i].value==settings.reminder)
+      {
+        select.selectedIndex=i;
+        break;
+      }
+    }
+  }
+
+  var span=document.createElement('span');
+  settingsDiv.appendChild(span);
+  var select=document.createElement('select');
+  select.addEventListener('change', setSettingsAndReload.bind(undefined, settingsDiv));
+  span.appendChild(document.createTextNode(' on '));
+  span.appendChild(select);
+  var days=['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  for(var i=0; i<days.length; i++)
+  {
+    var option=document.createElement('option');
+    select.appendChild(option);
+    option.value=days[i];
+    option.innerHTML=option.value;
+  }
+  if(settings.reminderDay)
+  {
+    var options=select.getElementsByTagName('option');
+    for(var i=0; i<options.length; i++)
+    {
+      if(options[i].value==settings.reminderDay)
+      {
+        select.selectedIndex=i;
+        break;
+      }
+    }
+  }
+
+  if(settings.reminder!="Weekly")
+  {
+    span.style.display='none';
+  }
+
+  var span=document.createElement('span');
+  settingsDiv.appendChild(span);
+  var input=document.createElement('input');
+  input.addEventListener('change', setSettings.bind(undefined, settingsDiv));
+  input.addEventListener('keyUp', setSettings.bind(undefined, settingsDiv));
+  span.appendChild(document.createTextNode(' at '));
+  span.appendChild(input);
+  input.type='time';
+  input.value='12:00';
+  if(settings.reminderTime)
+  {
+    input.value=settings.reminderTime;
+  }
+
+  if(settings.reminder!="Weekly" && settings.reminder!="Daily")
+  {
+    span.style.display='none';
+  }
+
+  settingsDiv.appendChild(document.createElement('br'));
+
   var a=document.createElement('a');
   settingsDiv.appendChild(a);
   a.innerHTML='Test reminder (in 10 seconds)';
@@ -300,6 +382,12 @@ function showSettings()
   a.style.fontSize='2em';
   a.href='javascript:void(0);';
   a.addEventListener('click', hide.bind(undefined, settingsDiv));
+}
+
+function setSettingsAndReload(settingsDiv)
+{
+  setSettings(settingsDiv);
+  showSettings();
 }
 
 function testNotify()
@@ -351,6 +439,22 @@ function getSettings()
   return settings;
 }
 
+function getDayMillDiff(day)
+{
+  var days=['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var day=days.indexOf(settings.reminderDay);
+  var curr=new Date();
+  var dayMillDiff=0;
+  var dayInMill=1000*60*60*24;
+  while(curr.getDay()!=day)
+  {
+    dayMillDiff+=dayInMill;
+    curr=new Date(curr.getTime()+dayInMill);
+  }
+
+  return dayMillDiff;
+}
+
 function setSettings(settingsDiv)
 {
   var settings={};
@@ -360,12 +464,32 @@ function setSettings(settingsDiv)
 
   settings.schedule=selects[0].selectedOptions[0].value;
   settings.modifier=selects[1].selectedOptions[0].value;
+  settings.reminder=selects[2].selectedOptions[0].value;
+  settings.reminderDay=selects[3].selectedOptions[0].value;
 
   settings.startDate=inputs[0].value;
   settings.monosleep=inputs[1].value;
   settings.adapted=inputs[2].checked;
+  settings.reminderTime=inputs[3].value;
 
   window.localStorage.settings=JSON.stringify(settings);
+
+  var time=settings.reminderTime.split(':');
+  time={hours:time[0], minutes:time[1]};
+
+  if(settings.reminder=='Weekly')
+  {
+    var t=new Date();
+    t=t.getTime()+getDayMillDiff(settings.reminderDay);
+    t.setHours(time.hours, time.minutes, 0);
+    cordova.plugins.notification.local.schedule({title:"Polyphasic Cognitive Tests", text:"Reminder to do the Polyphasic tests", firstAt:t, every:'week', led:"FF0000"});
+  }
+  if(settings.reminder=='Daily')
+  {
+    var t=new Date();
+    t.setHours(time.hours, time.minutes, 0);
+    cordova.plugins.notification.local.schedule({title:"Polyphasic Cognitive Tests", text:"Reminder to do the Polyphasic tests", firstAt:t, every:'day', led:"FF0000"});
+  }
 
   showMain();
 }
