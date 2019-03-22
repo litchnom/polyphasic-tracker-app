@@ -34,10 +34,10 @@ a
 #doTests
 {
   display:inline-block;
+  margin:20px;
   padding:30px;
   border-radius:30px;
   background:rgba(0,0,128,0.3);
-  margin:auto;
   box-shadow:inset black 0px 0px 10px 0px;
 }
 
@@ -58,13 +58,17 @@ a
 <body>
   <a href='javascript:showSettings();' style='position:absolute; top:5px; right: 5px;'>[S]</a>
   <div style='position:absolute; top:0; left:0; width:100%; height:100%; display:none; z-index:1; background:rgba(0,0,0,0.8); text-align:center; padding-top:30px;' id='settings'></div>
-  <div id='main' style='text-align:center;'></div>
+  <div id='main' style='text-align:center; padding-top:1.5em;'></div>
     <script type="text/javascript" src="cordova.js"></script>
 </body>
 
 <script>
-var score=0;
-var scores={};
+var temp_scores={};
+var tests = [
+  {name:"N-Back", description:"Tap 'Match' if the current symbol is the same as N symbols ago, otherwise tap 'No Match'", func:nback_test},
+  {name:"Reaction time", description:"Tap as soon as the screen turns green", func:reaction_test},
+  ];
+
 
 showMain();
 var settings=getSettings();
@@ -402,7 +406,7 @@ function showAdaptCriteria()
   var div=document.createElement('div');
   document.body.appendChild(div);
   div.setAttribute('style', 'position:absolute; top:0; left:0; width:100%; height:100%; z-index:2; background:rgba(0,0,0,0.8); text-align:center; padding-top:30px;');
-  div.innerHTML='<span style="color:red;">TODO: this doesn\'t look right for an adaptation checklist - verify with an admin and get the proper checklist?</span><br />';
+  //div.innerHTML='<span style="color:red;">TODO: this doesn\'t look right for an adaptation checklist - verify with an admin and get the proper checklist?</span><br />';
   var ol=document.createElement('ol');
   ol.setAttribute('style', 'list-style-position: inside;');
   div.appendChild(ol);
@@ -480,7 +484,7 @@ function setSettings(settingsDiv)
   if(settings.reminder=='Weekly')
   {
     var t=new Date();
-    t=t.getTime()+getDayMillDiff(settings.reminderDay);
+    t=new Date(t.getTime()+getDayMillDiff(settings.reminderDay));
     t.setHours(time.hours, time.minutes, 0);
     cordova.plugins.notification.local.schedule({title:"Polyphasic Cognitive Tests", text:"Reminder to do the Polyphasic tests", firstAt:t, every:'week', led:"FF0000"});
   }
@@ -531,6 +535,77 @@ function showMain()
     scheduleDiv.innerHTML+='<div style="color:red;">Not Adapted</div>';
   }
 
+  var scores=getScores();
+  // if at least one test session in storage
+  if(scores.length>0)
+  {
+    // show last test session results
+    var div=document.createElement('div');
+    mainDiv.appendChild(div);
+    var s=scores[scores.length-1];
+    div.innerHTML=s.identifier+': ';
+    for(var i=0; i<tests.length; i++)
+    {
+      div.innerHTML+='<br />'+tests[i].name+': '+s.scores[i];
+    }
+  }
+  // if more than one test session in storage
+  if(scores.length>1)
+  {
+    var div=document.createElement('div');
+    mainDiv.appendChild(div);
+    var sessions=scores.length;
+    if(sessions>=5)
+      sessions=5;
+    div.innerHTML='<br />Best Average (over '+sessions+' sessions): ';
+    // show average best results (over top 5) and +/- % of last test session
+    for(var j=0; j<tests.length; j++)
+    {
+      var t=[];
+      for(var i=0; i<scores.length; i++)
+      {
+        t.push(parseFloat(scores[i].scores[j]));
+      }
+      t.sort().reverse();
+      var total=0;
+      for(var i=0; i<t.length && i<=sessions; i++)
+      {
+        total+=t[i];
+      }
+      var tail=parseFloat(scores[0].scores[j]);
+      tail=(scores[0].scores[j]+'').split(tail)[1];
+      div.innerHTML+='<br />'+tests[j].name+': '+Math.round(total/sessions)+tail;
+    }
+  }
+  if(scores.length>5)
+  {
+    // show average worst results (over bottom 5) and +/- % of last test session
+    var div=document.createElement('div');
+    mainDiv.appendChild(div);
+    var sessions=scores.length;
+    if(sessions>=5)
+      sessions=5;
+    div.innerHTML='<br />Worst Average (over '+sessions+' sessions): ';
+    // show average worst results (over top 5) and +/- % of last test session
+    for(var j=0; j<tests.length; j++)
+    {
+      var t=[];
+      for(var i=0; i<scores.length; i++)
+      {
+        t.push(parseInt(scores[i].scores[j]));
+      }
+      t.sort();
+      var total=0;
+      for(var i=0; i<t.length && i<=sessions; i++)
+      {
+        total+=t[i];
+      }
+      var tail=parseFloat(scores[0].scores[j]);
+      tail=(scores[0].scores[j]+'').split(tail)[1];
+      div.innerHTML+='<br />'+tests[j].name+': '+Math.round(total/sessions)+tail;
+    }
+  }
+
   var a=document.createElement('a');
   a.id='doTests';
   mainDiv.appendChild(a);
@@ -543,11 +618,146 @@ function showMain()
   */
 }
 
-var tests = [
-  {name:"Reaction time", description:"Tap or click as soon as the screen turns green", func:reaction_test},
-  ];
-
+// TESTS:
 // div is the element to put the test in, callback is what to call when the test is finished
+
+// Start of nback_test functions
+function nback_test(div, callback)
+{
+  var data={n:2, lives:3, levelSuccesses:0, symbols:[], totalMatches:0, rounds:0, correct:0};
+  nback_next(div, data, callback);
+}
+
+function nback_chooseSymbol(data)
+{
+  var possibles=[];
+  var chars="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  var targetIndex=data.symbols.length-data.n;
+  if(targetIndex>=0)
+  {
+    possibles.push(data.symbols[targetIndex]);
+  }
+
+  while(possibles.length<3)
+  {
+    var rnum=Math.floor(Math.random() * chars.length);
+    var c=chars.substring(rnum, rnum+1);
+    if(possibles.indexOf(c)!=-1)
+      continue;
+    possibles.push(c);
+  }
+
+  return possibles[Math.floor(Math.random() * possibles.length)];
+}
+
+function nback_next(div, data, callback)
+{
+  data.rounds++;
+  div.innerHTML='<span style="float:left; padding-left:5px;">N++ in: '+(3-data.levelSuccesses)+'</span><span>R: '+data.rounds+', N: '+data.n+', C: '+data.correct+'</span><span style="float:right; padding-right:5px;">Lives: '+data.lives+'/3</span>';
+
+  var newSymbol=nback_chooseSymbol(data);
+  data.symbols.push(newSymbol);
+
+  var symbolDiv=document.createElement('div');
+  div.appendChild(symbolDiv);
+  symbolDiv.setAttribute('style', 'font-size:4em;');
+  symbolDiv.innerHTML=newSymbol;
+
+  var a=document.createElement('a');
+  div.appendChild(a);
+  a.setAttribute('style', 'width:50%; position:absolute; bottom:0; left:0; text-align:center; font-size:2em; background:#0F0;');
+  a.innerHTML='Match';
+  a.addEventListener('click', nback_match.bind(undefined, true, div, data, callback));
+
+  var b=document.createElement('a');
+  div.appendChild(b);
+  b.setAttribute('style', 'width:50%; position:absolute; bottom:0; right:0; text-align:center; font-size:2em; background:#F00;');
+  b.innerHTML='No Match';
+  b.addEventListener('click', nback_match.bind(undefined, false, div, data, callback));
+
+  if(data.symbols.length<=data.n)
+  {
+    a.innerHTML='Next';
+    a.style.width='100%';
+    b.style.display='none';
+  }
+}
+
+function nback_match(matched, div, data, callback)
+{
+  if(data.symbols.length<=data.n)
+  {
+    nback_next(div, data, callback);
+    return;
+  }
+
+  if(matched)
+  {
+    if(data.symbols[data.symbols.length-1] == data.symbols[data.symbols.length-1-data.n])
+    {
+      data.levelSuccesses++;
+      data.correct++;
+      if(data.levelSuccesses>=3)
+      {
+        data.totalMatches++;
+        data.n++;
+        data.symbols=[];
+        data.levelSuccesses=0;
+      }
+    }
+    else
+    {
+      data.lives--;
+      if(data.lives==0)
+      {
+        nback_final(div, data, callback);
+        return;
+      }
+      if(data.n>2)
+      {
+        data.n--;
+        data.symbols=[];
+      }
+      data.levelSuccesses=0;
+    }
+  }
+  else
+  {
+    if(data.symbols[data.symbols.length-1] == data.symbols[data.symbols.length-1-data.n])
+    {
+      data.lives--;
+      if(data.lives==0)
+      {
+        nback_final(div, data, callback);
+        return;
+      }
+      if(data.n>2)
+      {
+        data.n--;
+      }
+      data.levelSuccesses=0;
+    }
+  }
+
+  nback_next(div, data, callback);
+}
+
+function nback_final(div, data, callback)
+{
+  div.innerHTML='';
+
+  temp_scores.scores.push(data.correct);
+
+  var a=document.createElement('a');
+  div.appendChild(a);
+  a.setAttribute('style', 'position:absolute; width:100%; height:100%; top:0; left:0;');
+  a.innerHTML='You got '+data.correct+' Matches correct.<br /><br />Tap to continue.';
+  a.href='javascript:void(0);';
+  a.addEventListener('click', callback);
+}
+// End of nback_test functions
+
 // Start of reaction_test functions
 function reaction_test(div, callback)
 {
@@ -566,14 +776,14 @@ function inbetween_reactions(background, results, callback)
   if(results.length>=5)
   {
     background.innerHTML+='Reaction time tests done';
-    background.innerHTML+='<br /><br />Tap or click to proceed';
+    background.innerHTML+='<br /><br />Tap to proceed';
   }
   else
   {
     background.innerHTML+='Reaction time test: '+(results.length+1)+' of 5';
-    background.innerHTML+='<br /><br />Instructions: Tap or click to start<br />Then tap or click again as soon as the screen goes green';
+    background.innerHTML+='<br /><br />Instructions: Tap to start<br />Then tap again as soon as the screen goes green';
   }
-  background.style.background='red';
+  background.style.background='green';
 
   if(results.length > 0)
   {
@@ -609,7 +819,8 @@ function average(results)
 
 function new_reaction(background, results, callback)
 {
-  background.innerHTML='Reaction time test: '+(results.length+1)+' of 5<br /><br />Tap or click as soon as the screen goes green';
+  background.style.background='red';
+  background.innerHTML='Reaction time test: '+(results.length+1)+' of 5<br /><br />Tap as soon as the screen goes green';
   var delay=Math.round(Math.random()*7500)+2500; // the delay is between 2.5 and 10 seconds
   background.setAttribute('change', Date.now()+delay);
   window.setTimeout(changeBackground.bind(undefined, background), delay);
@@ -625,10 +836,9 @@ function reaction_clicked(background, results, callback)
     new_reaction(background, results, callback);
     return;
   }
-  else if(change==-1) // we're done, update 'score' and 'scores', then call the callback
+  else if(change==-1) // we're done, 'temp_scores' then call the callback
   {
-    score+=100 / (average(results) / 1000);
-    scores.reaction_time=average(results);
+    temp_scores.scores.push(Math.round(average(results))+'ms');
     callback();
     return;
   }
@@ -648,11 +858,30 @@ function reaction_clicked(background, results, callback)
 
 function changeBackground(background)
 {
-  background.setAttribute('change', Date.now());
+  window.setTimeout(setChange.bind(undefined, background), 0);
   background.style.background='green';
-  console.log('changed background');
+}
+
+function setChange(background)
+{
+  background.setAttribute('change', Date.now());
 }
 // End of reaction_test functions
+
+function getScores()
+{
+  var scores=window.localStorage.scores;
+  if(scores)
+    return JSON.parse(scores);
+  return [];
+}
+
+function addScores(newScores)
+{
+  var scores=getScores();
+  scores.push(newScores);
+  window.localStorage.scores=JSON.stringify(scores);
+}
 
 function doTests(index)
 {
@@ -661,8 +890,7 @@ function doTests(index)
 
   if(index==0)
   {
-    score=0;
-    scores={};
+    temp_scores={scores:[]};
   }
 
   var a=document.createElement('a');
@@ -672,13 +900,33 @@ function doTests(index)
   var test=tests[index];
   if(!test)
   {
-    a.innerHTML='All '+tests.length+' tests complete for this session.<br />Your total score this session was: '+Math.round(score);
+    a.innerHTML='All '+tests.length+' tests complete for this session.<br /><br />Scores this session:<br />';
+    for(var i=0; i<tests.length; i++)
+    {
+      a.innerHTML+=tests[i].name+': '+temp_scores.scores[i]+'<br />';
+    }
+    a.innerHTML+='<br /><br />Tap to return to main screen.';
     a.addEventListener('click', showMain);
+
+    var settings=getSettings();
+
+    temp_scores.identifier=settings.schedule;
+    if(settings.modifier)
+    {
+      temp_scores.identifier+='-'+settings.modifier;
+    }
+    var day=0;
+    if(settings.startDate!='Unset')
+      day=daysSince(settings.startDate);
+    temp_scores.identifier+=' Day #'+day;
+
+    addScores(temp_scores);
+
     return;
   }
 
   a.innerHTML='Test '+(index+1)+' of '+tests.length+'<br /><br />'+test.name+'<br /><br />'+test.description;
-  a.innerHTML+='<br /><br />(Tap or click to take test)';
+  a.innerHTML+='<br /><br />(Tap to take test)';
   a.addEventListener('click', test.func.bind(undefined, mainDiv, doTests.bind(undefined, index+1)));
 }
 
